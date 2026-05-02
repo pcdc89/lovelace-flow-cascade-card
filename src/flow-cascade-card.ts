@@ -152,6 +152,13 @@ export class FlowCascadeCard extends LitElement {
     return isNaN(v) ? null : Math.min(100, Math.max(0, v));
   }
 
+  private _resolvedNodeColor(node: NodeConfig, watts: number | null, soc: number | null): string {
+    if (node.color) return node.color;
+    // Battery at 100% SOC still charging → turquoise (cell balancing)
+    if (soc !== null && soc >= 100 && watts !== null && watts > 0) return "#00bcd4";
+    return nodeColor(node, watts ?? 0);
+  }
+
   private _renderSingleLink(
     rl: ResolvedLink,
     animSpeed: number,
@@ -245,10 +252,10 @@ export class FlowCascadeCard extends LitElement {
         <div class="cascade">
           ${nodes.map((node) => {
             const watts = this._getNodeWatts(node.id);
-            const color = watts !== null ? nodeColor(node, watts) : "var(--fcc-idle)";
+            const soc = this._getNodeSoc(node);
+            const color = watts !== null ? this._resolvedNodeColor(node, watts, soc) : "var(--fcc-idle)";
             const icon = node.icon ?? guessIcon(node.id);
             const isActive = watts !== null && Math.abs(watts) > idleThreshold;
-            const soc = this._getNodeSoc(node);
 
             const outgoingLinks = linksBySource.get(node.id) ?? [];
             const isSplit = outgoingLinks.length > 1;
