@@ -4,6 +4,8 @@ export interface NodeConfig {
   icon?: string;
   power_entity: string;
   energy_entity?: string;
+  /** For battery: entity with state 0-100 */
+  soc_entity?: string;
   color?: string;
   /** "source" | "sink" | "bidirectional" */
   type?: "source" | "sink" | "bidirectional";

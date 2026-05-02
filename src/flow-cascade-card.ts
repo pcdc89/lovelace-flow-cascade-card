@@ -56,6 +56,12 @@ function nodeColor(node: NodeConfig, watts: number): string {
   return watts >= 0 ? "var(--fcc-positive)" : "var(--fcc-negative)";
 }
 
+function linkColor(direction: ResolvedLink["direction"]): string {
+  if (direction === "forward") return "var(--fcc-positive)";
+  if (direction === "reverse") return "var(--fcc-negative)";
+  return "var(--fcc-idle)";
+}
+
 @customElement("flow-cascade-card")
 export class FlowCascadeCard extends LitElement {
   static override styles = [cardStyles, css``];
@@ -91,7 +97,7 @@ export class FlowCascadeCard extends LitElement {
       nodes: [
         { id: "pv",      label: "PV",        icon: "☀️",  power_entity: "sensor.pv_power",       type: "source" },
         { id: "haus",    label: "Haus",       icon: "🏠",  power_entity: "sensor.house_power",    type: "sink" },
-        { id: "battery", label: "Batterie",   icon: "🔋",  power_entity: "sensor.battery_power",  type: "bidirectional" },
+        { id: "battery", label: "Batterie",   icon: "🔋",  power_entity: "sensor.battery_power",  type: "bidirectional", soc_entity: "sensor.battery_soc" },
         { id: "ev",      label: "E-Auto",     icon: "🚗",  power_entity: "sensor.wallbox_power",  type: "sink" },
         { id: "wp",      label: "Wärmepumpe", icon: "♨️",  power_entity: "sensor.heatpump_power", type: "sink" },
         { id: "netz",    label: "Netz",       icon: "⚡",  power_entity: "sensor.grid_power",     type: "bidirectional" },
@@ -137,15 +143,100 @@ export class FlowCascadeCard extends LitElement {
     return isNaN(v) ? null : v;
   }
 
+  private _getNodeSoc(node: NodeConfig): number | null {
+    if (!node.soc_entity || !this.hass) return null;
+    const raw = this.hass.states[node.soc_entity]?.state;
+    if (!raw || raw === "unavailable" || raw === "unknown") return null;
+    const v = parseFloat(raw);
+    return isNaN(v) ? null : Math.min(100, Math.max(0, v));
+  }
+
+  private _renderSingleLink(
+    rl: ResolvedLink,
+    animSpeed: number,
+    decimals: number,
+    unit: "W" | "kW" | "auto"
+  ) {
+    const color = linkColor(rl.direction);
+    const isFlowing = rl.direction !== "idle";
+    const arrowChar = rl.direction === "reverse" ? "▲" : "▼";
+    const arrowPos = rl.direction === "reverse" ? "tip-top" : "tip-bottom";
+    const flowDir = rl.direction === "reverse" ? "top" : "bottom";
+
+    return html`
+      <div
+        class="link"
+        style=${styleMap({
+          "--link-color": color,
+          "--anim-speed": `${animSpeed}ms`,
+          "--flow-dir": flowDir,
+        })}
+      >
+        <div class="link-line ${isFlowing ? "flowing" : ""}"></div>
+        <div class="link-label">
+          ${isFlowing ? formatWatts(Math.abs(rl.watts), decimals, unit) : ""}
+        </div>
+        <div class="link-arrow ${arrowPos}">${arrowChar}</div>
+      </div>
+    `;
+  }
+
+  private _renderSplitLinks(
+    links: ResolvedLink[],
+    nodeMap: Map<string, NodeConfig>,
+    animSpeed: number,
+    decimals: number,
+    unit: "W" | "kW" | "auto"
+  ) {
+    return html`
+      <div
+        class="split-row"
+        style=${styleMap({ "--branch-count": String(links.length) })}
+      >
+        ${links.map((rl) => {
+          const color = linkColor(rl.direction);
+          const isFlowing = rl.direction !== "idle";
+          const targetNode = nodeMap.get(rl.to);
+          const targetIcon = targetNode?.icon ?? guessIcon(rl.to);
+          const targetLabel = targetNode?.label ?? rl.to;
+
+          return html`
+            <div class="split-branch" style=${styleMap({ "--link-color": color, "--anim-speed": `${animSpeed}ms` })}>
+              <div class="split-branch-line ${isFlowing ? "flowing" : ""}"></div>
+              <div class="split-branch-arrow">▼</div>
+              <div class="split-branch-label">
+                ${targetIcon} ${isFlowing ? formatWatts(Math.abs(rl.watts), decimals, unit) : targetLabel}
+              </div>
+            </div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
   override render() {
     if (!this._config) return nothing;
     const { nodes, title, animation_speed = 1200, decimals = 1, unit = "auto" } = this._config;
     const resolvedLinks = this._resolveLinks();
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
-    const linksByPair = new Map<string, ResolvedLink>();
+    // Pre-group links by source node (to detect splits)
+    const linksBySource = new Map<string, ResolvedLink[]>();
     for (const rl of resolvedLinks) {
-      linksByPair.set(`${rl.from}:${rl.to}`, rl);
+      if (!linksBySource.has(rl.from)) linksBySource.set(rl.from, []);
+      linksBySource.get(rl.from)!.push(rl);
     }
+
+    // Track which nodes have already been "consumed" as split targets
+    // so we skip rendering their inline link segment
+    const splitTargets = new Set<string>();
+    for (const [, rls] of linksBySource) {
+      if (rls.length > 1) {
+        for (const rl of rls) splitTargets.add(rl.to);
+      }
+    }
+
+    const idleThreshold = this._config.idle_threshold ?? 5;
 
     return html`
       <ha-card>
@@ -155,9 +246,15 @@ export class FlowCascadeCard extends LitElement {
             const watts = this._getNodeWatts(node.id);
             const color = watts !== null ? nodeColor(node, watts) : "var(--fcc-idle)";
             const icon = node.icon ?? guessIcon(node.id);
-            const isActive = watts !== null && Math.abs(watts) > (this._config!.idle_threshold ?? 5);
+            const isActive = watts !== null && Math.abs(watts) > idleThreshold;
+            const soc = this._getNodeSoc(node);
 
-            const linksBelow = resolvedLinks.filter((rl) => rl.from === node.id);
+            const outgoingLinks = linksBySource.get(node.id) ?? [];
+            const isSplit = outgoingLinks.length > 1;
+
+            // For single-link nodes, find the one outgoing link
+            // But skip if this node is a split target that already got a header
+            const singleLink = !isSplit && outgoingLinks.length === 1 ? outgoingLinks[0] : null;
 
             return html`
               <div class="node">
@@ -169,43 +266,23 @@ export class FlowCascadeCard extends LitElement {
                   <div class="node-info">
                     <div class="node-label">${node.label}</div>
                     <div class="node-power ${watts === null ? "unavailable" : ""}">
-                      ${watts === null
-                        ? "–"
-                        : formatWatts(watts, decimals, unit)}
+                      ${watts === null ? "–" : formatWatts(watts, decimals, unit)}
                     </div>
+                    ${soc !== null ? html`
+                      <div class="soc-bar-wrap">
+                        <div class="soc-bar" style=${styleMap({ width: `${soc}%` })}></div>
+                      </div>
+                      <div class="soc-label">${soc.toFixed(0)} %</div>
+                    ` : nothing}
                   </div>
                 </div>
               </div>
 
-              ${linksBelow.map((rl) => {
-                const linkColor =
-                  rl.direction === "forward"
-                    ? "var(--fcc-positive)"
-                    : rl.direction === "reverse"
-                    ? "var(--fcc-negative)"
-                    : "var(--fcc-idle)";
-                const isFlowing = rl.direction !== "idle";
-                const arrowChar = rl.direction === "reverse" ? "▲" : "▼";
-                const arrowPos = rl.direction === "reverse" ? "tip-top" : "tip-bottom";
-                const flowDir = rl.direction === "reverse" ? "top" : "bottom";
-
-                return html`
-                  <div
-                    class="link"
-                    style=${styleMap({
-                      "--link-color": linkColor,
-                      "--anim-speed": `${animation_speed}ms`,
-                      "--flow-dir": flowDir,
-                    })}
-                  >
-                    <div class="link-line ${isFlowing ? "flowing" : ""}"></div>
-                    <div class="link-label">
-                      ${isFlowing ? formatWatts(Math.abs(rl.watts), decimals, unit) : ""}
-                    </div>
-                    <div class="link-arrow ${arrowPos}">${arrowChar}</div>
-                  </div>
-                `;
-              })}
+              ${isSplit
+                ? this._renderSplitLinks(outgoingLinks, nodeMap, animation_speed, decimals, unit)
+                : singleLink && !splitTargets.has(node.id)
+                  ? this._renderSingleLink(singleLink, animation_speed, decimals, unit)
+                  : nothing}
             `;
           })}
         </div>
