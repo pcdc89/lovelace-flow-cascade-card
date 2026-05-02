@@ -52,7 +52,7 @@ function nodeColor(node: NodeConfig, watts: number): string {
   if (node.color) return node.color;
   const type = node.type ?? "bidirectional";
   if (type === "source") return "var(--fcc-positive)";
-  if (type === "sink") return "var(--fcc-negative)";
+  if (type === "sink") return "var(--primary-color, #03a9f4)";
   return watts >= 0 ? "var(--fcc-positive)" : "var(--fcc-negative)";
 }
 
