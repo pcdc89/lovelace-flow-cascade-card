@@ -1,0 +1,29 @@
+{
+  "name": "lovelace-flow-cascade-card",
+  "version": "0.1.0",
+  "description": "Home Assistant Lovelace card for linear cascade energy flow visualization",
+  "keywords": ["home-assistant", "lovelace", "custom-card", "energy", "pv", "flow"],
+  "homepage": "https://github.com/pcdc89/lovelace-flow-cascade-card",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pcdc89/lovelace-flow-cascade-card.git"
+  },
+  "license": "MIT",
+  "main": "dist/flow-cascade-card.js",
+  "scripts": {
+    "build": "rollup -c rollup.config.mjs",
+    "watch": "rollup -c rollup.config.mjs --watch",
+    "lint": "eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "rollup": "^4.0.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "lit": "^3.0.0"
+  }
+}
