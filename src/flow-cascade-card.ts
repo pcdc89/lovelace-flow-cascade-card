@@ -1,3 +1,4 @@
+import "./flow-cascade-card-editor.js";
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
