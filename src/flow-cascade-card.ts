@@ -52,8 +52,9 @@ function nodeColor(node: NodeConfig, watts: number): string {
   if (node.color) return node.color;
   const type = node.type ?? "bidirectional";
   if (type === "source") return "var(--fcc-positive)";
-  if (type === "sink") return "var(--primary-color, #03a9f4)";
-  return watts >= 0 ? "var(--fcc-positive)" : "var(--fcc-negative)";
+  if (type === "sink") return "#03a9f4";
+  const isPositive = node.invert_color ? watts <= 0 : watts >= 0;
+  return isPositive ? "var(--fcc-positive)" : "var(--fcc-negative)";
 }
 
 function linkColor(direction: ResolvedLink["direction"]): string {

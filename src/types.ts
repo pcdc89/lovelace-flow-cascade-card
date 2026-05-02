@@ -9,6 +9,8 @@ export interface NodeConfig {
   color?: string;
   /** "source" | "sink" | "bidirectional" */
   type?: "source" | "sink" | "bidirectional";
+  /** Invert green/red for bidirectional nodes where negative = good (e.g. Netz: negative = Einspeisung) */
+  invert_color?: boolean;
 }
 
 export interface LinkConfig {
