@@ -1,5 +1,6 @@
 {
   "name": "Flow Cascade Card",
   "render_readme": true,
-  "homeassistant": "2023.9.0"
+  "homeassistant": "2023.9.0",
+  "filename": "dist/flow-cascade-card.js"
 }
