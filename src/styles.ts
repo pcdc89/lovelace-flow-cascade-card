@@ -40,9 +40,11 @@ export const cardStyles = css`
 
   .node-box {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding: 10px 18px;
+    text-align: center;
+    gap: 0;
+    padding: 12px 18px 10px;
     border-radius: 12px;
     border: 2px solid var(--divider-color, #e0e0e0);
     background: var(--fcc-bg);
@@ -58,30 +60,29 @@ export const cardStyles = css`
   }
 
   .node-icon {
-    font-size: 1.6em;
-    width: 32px;
-    text-align: center;
-    flex-shrink: 0;
+    font-size: 1.8em;
+    line-height: 1.2;
+    margin-bottom: 4px;
   }
 
   .node-info {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 2px;
-    flex: 1;
-    min-width: 0;
+    width: 100%;
   }
 
   .node-label {
-    font-size: 0.82em;
-    opacity: 0.65;
+    font-size: 0.78em;
+    opacity: 0.6;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   .node-power {
-    font-size: 1.15em;
-    font-weight: 600;
+    font-size: 1.2em;
+    font-weight: 700;
     color: var(--node-color, var(--fcc-positive));
     white-space: nowrap;
   }
@@ -94,24 +95,27 @@ export const cardStyles = css`
 
   /* SOC bar */
   .soc-bar-wrap {
-    margin-top: 4px;
-    height: 5px;
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--node-color, var(--fcc-idle)) 20%, transparent);
+    margin-top: 8px;
+    height: 10px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--node-color, var(--fcc-idle)) 18%, var(--fcc-bg) 82%);
     overflow: hidden;
+    width: 100%;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.12);
   }
 
   .soc-bar {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 5px;
     background: var(--node-color, var(--fcc-positive));
     transition: width 0.6s ease;
   }
 
   .soc-label {
-    font-size: 0.75em;
-    opacity: 0.75;
-    margin-top: 1px;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--node-color, var(--fcc-positive));
+    margin-top: 4px;
   }
 
   /* ── SINGLE LINK ── */
@@ -190,6 +194,162 @@ export const cardStyles = css`
 
   .link-arrow.tip-bottom { bottom: 0; }
   .link-arrow.tip-top    { top: 0; }
+
+  /* ── NODE ROW (side-by-side nodes) ── */
+  .node-row {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+    max-width: 320px;
+    gap: 0;
+  }
+
+  .node-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .node-col .node-box {
+    height: 100%;
+  }
+
+  /* ── HORIZONTAL LINK (within row) ── */
+  .horiz-link {
+    flex: 0 0 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 4px 0;
+  }
+
+  .horiz-link-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 3px;
+    transform: translateY(-50%);
+    background: var(--link-color, var(--fcc-idle));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .horiz-link-line::after {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 0;
+    width: 14px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.85) 50%, transparent);
+    animation: flow-horiz var(--anim-speed, 1.2s) linear infinite;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .horiz-link-line.flowing::after { opacity: 1; }
+
+  @keyframes flow-horiz {
+    0%   { left: -14px; }
+    100% { left: calc(100% + 14px); }
+  }
+
+  .horiz-link-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--fcc-bg);
+    padding: 0 2px;
+    gap: 1px;
+  }
+
+  .horiz-link-arrow {
+    font-size: 0.85em;
+    color: var(--link-color, var(--fcc-idle));
+    line-height: 1;
+  }
+
+  .horiz-link-label {
+    font-size: 0.68em;
+    font-weight: 600;
+    color: var(--link-color, var(--fcc-idle));
+    white-space: nowrap;
+    min-height: 0.9em;
+  }
+
+  /* ── INTER-ROW ZONE (parallel descent from multi-node row) ── */
+  .inter-row-zone {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    max-width: 320px;
+    height: var(--fcc-arrow-gap);
+    margin: 2px 0;
+  }
+
+  .inter-row-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+
+  .inter-row-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    transform: translateX(-50%);
+    background: var(--link-color, var(--fcc-idle));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .inter-row-line::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 14px;
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.85) 50%, transparent);
+    animation: flow-pulse var(--anim-speed, 1.2s) linear infinite;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .inter-row-line.flowing::after { opacity: 1; }
+
+  .inter-row-label {
+    position: absolute;
+    right: calc(50% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.72em;
+    font-weight: 600;
+    color: var(--link-color, var(--fcc-idle));
+    white-space: nowrap;
+    background: var(--fcc-bg);
+    padding: 1px 3px;
+    border-radius: 3px;
+    min-width: 0;
+  }
+
+  .inter-row-arrow {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: 1em;
+    color: var(--link-color, var(--fcc-idle));
+    line-height: 1;
+  }
 
   /* ── SPLIT ROW (2+ outgoing links) ── */
   .split-row {

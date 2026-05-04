@@ -1,27 +1,30 @@
 # Flow Cascade Card
 
-A Home Assistant Lovelace card for **linear top-to-bottom cascade energy flow visualization**.
+A Home Assistant Lovelace card for **energy flow visualization** with support for parallel nodes (PV + Battery side-by-side) and linear cascade distribution.
+
+![Preview](docs/preview.jpg)
 
 ```
-☀️  PV          → 3.2 kW
-        ↓ 1.8 kW
-🔋  Batterie     charging
-        ↓ 1.4 kW
-🏠  Haus         1.2 kW
-        ↓
-🚗  E-Auto       0 W
-        ↓ 0.2 kW
-♨️  Wärmepumpe   0.2 kW
-        ↓
-⚡  Netz         ← 1.0 kW Einspeisung
+☀️  PV  ──────────→  🔋 Batterie
+  ↓ (Direkt)              ↓ (Entladung)
+        🏠  Haus
+              ↓
+        🚗  E-Auto
+              ↓
+        ♨️  Wärmepumpe
+              ↓
+        ⚡  Netz
 ```
 
 ## Features
 
-- Vertical cascade layout (PV → Batterie → Haus → E-Auto → WP → Netz)
+- **Parallel rows** (`layout_row`): PV und Batterie nebeneinander, horizontal animierter Ladepfeil
+- **One-way links** (`one_way: true`): Pfeil nur in einer Richtung (z.B. PV→Batterie nie rückwärts)
 - Animated directional arrows with watt values
 - Bidirectional nodes (battery charge/discharge, grid import/export)
+- Battery SOC bar + turquoise at 100 % (cell balancing)
 - Configurable via YAML (nodes + links)
+- Visual YAML editor in Lovelace UI
 - HACS compatible
 
 ## Installation
@@ -57,19 +60,23 @@ nodes:
     label: PV
     icon: ☀️
     power_entity: sensor.pv_power
-    type: source          # source | sink | bidirectional
+    type: source
+    layout_row: 0          # place PV and battery side-by-side in row 0
 
   - id: battery
     label: Batterie
     icon: 🔋
     power_entity: sensor.battery_power
     type: bidirectional
+    soc_entity: sensor.battery_soc
+    layout_row: 0          # same row as PV
 
   - id: haus
     label: Haus
     icon: 🏠
     power_entity: sensor.house_power
     type: sink
+    layout_row: 1          # below the PV/battery row
 
   - id: ev
     label: E-Auto
@@ -87,18 +94,28 @@ nodes:
     label: Netz
     icon: ⚡
     power_entity: sensor.grid_power
-    type: bidirectional   # positive = Bezug, negative = Einspeisung
+    type: bidirectional
+    invert_color: true     # negative = Einspeisung (green)
 
 links:
   - from: pv
     to: battery
+    power_entity: sensor.battery_power
     positive_direction: from_to
+    one_way: true          # arrow only when charging, idle when discharging
 
   - from: pv
     to: haus
+    power_entity: sensor.house_power
     positive_direction: from_to
 
   - from: battery
+    to: haus
+    power_entity: sensor.battery_power
+    positive_direction: to_from
+    one_way: true          # arrow only when discharging, idle when charging
+
+  - from: haus
     to: ev
     positive_direction: from_to
 
@@ -108,13 +125,28 @@ links:
 
   - from: wp
     to: netz
-    positive_direction: from_to   # positive = Einspeisung
+    positive_direction: from_to
 ```
 
-## Roadmap
+### Node options
 
-- [ ] Split-node visualization (PV → Batterie + Haus gleichzeitig)
-- [ ] Energy (kWh) display per node
-- [ ] Color theming per node
-- [ ] Visual editor (Lovelace UI)
-- [ ] Battery SOC display
+| Option | Type | Description |
+|---|---|---|
+| `id` | string | Unique identifier |
+| `label` | string | Display name |
+| `icon` | string | Emoji icon |
+| `power_entity` | string | HA entity (W) |
+| `type` | `source` \| `sink` \| `bidirectional` | Node color logic |
+| `soc_entity` | string | Battery SOC entity (0–100) |
+| `invert_color` | bool | Green when negative (e.g. grid export) |
+| `layout_row` | number | Group nodes in horizontal rows |
+| `color` | string | Fixed CSS color |
+
+### Link options
+
+| Option | Type | Description |
+|---|---|---|
+| `from` / `to` | string | Node IDs |
+| `power_entity` | string | Override entity for this link |
+| `positive_direction` | `from_to` \| `to_from` | Which sign = forward flow |
+| `one_way` | bool | Hide reverse direction (show as idle) |

@@ -11,6 +11,8 @@ export interface NodeConfig {
   type?: "source" | "sink" | "bidirectional";
   /** Invert green/red for bidirectional nodes where negative = good (e.g. Netz: negative = Einspeisung) */
   invert_color?: boolean;
+  /** Place nodes with same layout_row side-by-side; links within the same row render horizontally */
+  layout_row?: number;
 }
 
 export interface LinkConfig {
@@ -20,6 +22,8 @@ export interface LinkConfig {
   power_entity?: string;
   /** positive value = flow from→to, negative = flow to→from */
   positive_direction?: "from_to" | "to_from";
+  /** if true, reverse direction is shown as idle (link only flows one way) */
+  one_way?: boolean;
 }
 
 export interface FlowCascadeCardConfig {
