@@ -470,15 +470,18 @@ export class FlowCascadeCard extends LitElement {
           const iNode = this._config!.nodes.find(n => n.id === il.to)!;
           const iWatts = this._getNodeWatts(il.to);
           const iSoc = this._getNodeSoc(iNode);
-          const iColor = linkColor(il.direction);
           const isFlowing = il.direction !== "idle";
-          const iFlowDir = il.direction === "reverse" ? "top" : "bottom";
-          const iArrow = il.direction === "reverse" ? "▲" : "▼";
+          // Branch adopts the main link's direction so that colour and animation
+          // match the actual power source (e.g. red/upward when grid imports).
+          const effectiveDir = isFlowing ? mainLink.direction : "idle";
+          const iColor = linkColor(effectiveDir);
+          const iFlowDir = effectiveDir === "reverse" ? "top" : "bottom";
+          const iArrow = effectiveDir === "reverse" ? "▲" : "▼";
           return html`
             <div class="interstitial-branch">
               <div class="interstitial-branch-arrow"
                    style=${styleMap({ "--link-color": iColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": iFlowDir })}>
-                <div class="interstitial-branch-line ${isFlowing ? "flowing" : ""} ${il.direction === "reverse" ? "flow-up" : ""}"></div>
+                <div class="interstitial-branch-line ${isFlowing ? "flowing" : ""} ${effectiveDir === "reverse" ? "flow-up" : ""}"></div>
                 <div class="interstitial-branch-label">
                   ${isFlowing ? formatWatts(Math.abs(il.watts), decimals, unit) : ""}
                 </div>
@@ -489,7 +492,7 @@ export class FlowCascadeCard extends LitElement {
               </div>
               <div class="interstitial-branch-arrow"
                    style=${styleMap({ "--link-color": iColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": iFlowDir })}>
-                <div class="interstitial-branch-line ${isFlowing ? "flowing" : ""} ${il.direction === "reverse" ? "flow-up" : ""}"></div>
+                <div class="interstitial-branch-line ${isFlowing ? "flowing" : ""} ${effectiveDir === "reverse" ? "flow-up" : ""}"></div>
                 <div class="interstitial-branch-arrowhead">${iArrow}</div>
               </div>
             </div>
