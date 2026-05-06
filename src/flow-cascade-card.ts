@@ -115,7 +115,8 @@ export class FlowCascadeCard extends LitElement {
     };
   }
 
-  // Groups nodes into rows by layout_row. Nodes without layout_row each get a unique auto-row.
+  // Groups nodes into rows by layout_row. Side nodes (layout_side) are skipped — they render
+  // inline next to their source node, not as standalone rows.
   private _buildRows(nodes: NodeConfig[]): NodeConfig[][] {
     const map = new Map<number, NodeConfig[]>();
     let maxExplicit = -1;
@@ -124,6 +125,7 @@ export class FlowCascadeCard extends LitElement {
     }
     let autoKey = maxExplicit + 1;
     for (const n of nodes) {
+      if (n.layout_side || n.layout_bypass || n.layout_interstitial) continue;
       const key = n.layout_row ?? autoKey++;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(n);
@@ -183,13 +185,15 @@ export class FlowCascadeCard extends LitElement {
     soc: number | null,
     decimals: number,
     unit: "W" | "kW" | "auto",
-    idleThreshold: number
+    idleThreshold: number,
+    compact = false
   ) {
     const color = watts !== null ? this._resolvedNodeColor(node, watts, soc) : "var(--fcc-idle)";
     const icon = node.icon ?? guessIcon(node.id);
     const isActive = watts !== null && Math.abs(watts) > idleThreshold;
     return html`
-      <div class="node-box ${isActive ? "active" : ""}" style=${styleMap({ "--node-color": color })}>
+      <div class="node-box ${isActive ? "active" : ""} ${compact ? "node-box--compact" : ""}"
+           style=${styleMap({ "--node-color": color })}>
         <div class="node-icon">${icon}</div>
         <div class="node-info">
           <div class="node-label">${node.label}</div>
@@ -203,6 +207,45 @@ export class FlowCascadeCard extends LitElement {
             <div class="soc-label">${soc.toFixed(0)} %</div>
           ` : nothing}
         </div>
+      </div>
+    `;
+  }
+
+  private _renderNodeWithSide(
+    node: NodeConfig,
+    watts: number | null,
+    soc: number | null,
+    sideLinks: ResolvedLink[],
+    decimals: number,
+    unit: "W" | "kW" | "auto",
+    idleThreshold: number,
+    animSpeed: number
+  ) {
+    return html`
+      <div class="node-with-side">
+        <div class="main-col">
+          ${this._renderNodeBox(node, watts, soc, decimals, unit, idleThreshold)}
+        </div>
+        ${sideLinks.map(rl => {
+          const sideNode = this._config!.nodes.find(n => n.id === rl.to)!;
+          const sideWatts = this._getNodeWatts(rl.to);
+          const sideSoc = this._getNodeSoc(sideNode);
+          const color = linkColor(rl.direction);
+          const isFlowing = rl.direction !== "idle";
+          const arrowChar = rl.direction === "reverse" ? "◀" : "▶";
+          return html`
+            <div class="side-connector" style=${styleMap({ "--link-color": color, "--anim-speed": `${animSpeed}ms` })}>
+              <div class="side-conn-line ${isFlowing ? "flowing" : ""}"></div>
+              <div class="side-conn-content">
+                <span class="side-conn-arrow">${arrowChar}</span>
+                <span class="side-conn-label">${isFlowing ? formatWatts(Math.abs(rl.watts), decimals, unit) : ""}</span>
+              </div>
+            </div>
+            <div class="side-col">
+              ${this._renderNodeBox(sideNode, sideWatts, sideSoc, decimals, unit, idleThreshold, true)}
+            </div>
+          `;
+        })}
       </div>
     `;
   }
@@ -256,12 +299,43 @@ export class FlowCascadeCard extends LitElement {
     `;
   }
 
+  // Fan-out zone: one source fans out to multiple nodes in the same target row.
+  // Columns are aligned with TARGET row node positions (not source positions).
+  private _renderFanOutZone(
+    targetRow: NodeConfig[],
+    outLinks: ResolvedLink[],
+    animSpeed: number,
+    decimals: number,
+    unit: "W" | "kW" | "auto"
+  ) {
+    const cols = targetRow.map(n => outLinks.find(rl => rl.to === n.id) ?? null);
+    return html`
+      <div class="inter-row-zone">
+        ${cols.map(rl => {
+          if (!rl) return html`<div class="inter-row-col"></div>`;
+          const color = linkColor(rl.direction);
+          const isFlowing = rl.direction !== "idle";
+          return html`
+            <div class="inter-row-col" style=${styleMap({ "--link-color": color, "--anim-speed": `${animSpeed}ms` })}>
+              <div class="inter-row-line ${isFlowing ? "flowing" : ""} ${rl.direction === "reverse" ? "flow-up" : ""}"></div>
+              <div class="inter-row-label">
+                ${isFlowing ? formatWatts(Math.abs(rl.watts), decimals, unit) : ""}
+              </div>
+              <div class="inter-row-arrow">${rl.direction === "reverse" ? "▲" : "▼"}</div>
+            </div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
   private _renderInterRowZone(
     rowNodes: NodeConfig[],
     outLinks: ResolvedLink[],
     animSpeed: number,
     decimals: number,
-    unit: "W" | "kW" | "auto"
+    unit: "W" | "kW" | "auto",
+    hasSideSpacer = false
   ) {
     // One column per node in the row; each column shows the outgoing vertical link from that node.
     const cols = rowNodes.map(n => outLinks.find(rl => rl.from === n.id) ?? null);
@@ -274,14 +348,15 @@ export class FlowCascadeCard extends LitElement {
           const isFlowing = rl.direction !== "idle";
           return html`
             <div class="inter-row-col" style=${styleMap({ "--link-color": color, "--anim-speed": `${animSpeed}ms` })}>
-              <div class="inter-row-line ${isFlowing ? "flowing" : ""}"></div>
+              <div class="inter-row-line ${isFlowing ? "flowing" : ""} ${rl.direction === "reverse" ? "flow-up" : ""}"></div>
               <div class="inter-row-label">
                 ${isFlowing ? formatWatts(Math.abs(rl.watts), decimals, unit) : ""}
               </div>
-              <div class="inter-row-arrow">▼</div>
+              <div class="inter-row-arrow">${rl.direction === "reverse" ? "▲" : "▼"}</div>
             </div>
           `;
         })}
+        ${hasSideSpacer ? html`<div class="inter-row-side-spacer"></div>` : nothing}
       </div>
     `;
   }
@@ -307,11 +382,119 @@ export class FlowCascadeCard extends LitElement {
           "--flow-dir": flowDir,
         })}
       >
-        <div class="link-line ${isFlowing ? "flowing" : ""}"></div>
+        <div class="link-line ${isFlowing ? "flowing" : ""} ${rl.direction === "reverse" ? "flow-up" : ""}"></div>
         <div class="link-label">
           ${isFlowing ? formatWatts(Math.abs(rl.watts), decimals, unit) : ""}
         </div>
         <div class="link-arrow ${arrowPos}">${arrowChar}</div>
+      </div>
+    `;
+  }
+
+  private _renderBypassZone(
+    mainLink: ResolvedLink,
+    bypassLinks: ResolvedLink[],
+    animSpeed: number,
+    decimals: number,
+    unit: "W" | "kW" | "auto",
+    idleThreshold: number
+  ) {
+    const mainColor = linkColor(mainLink.direction);
+    const isMainFlowing = mainLink.direction !== "idle";
+    const flowDir = mainLink.direction === "reverse" ? "top" : "bottom";
+    const arrowChar = mainLink.direction === "reverse" ? "▲" : "▼";
+    const arrowPos = mainLink.direction === "reverse" ? "tip-top" : "tip-bottom";
+
+    return html`
+      <div class="bypass-zone">
+        <div class="bypass-main"
+             style=${styleMap({ "--link-color": mainColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": flowDir })}>
+          <div class="bypass-main-line ${isMainFlowing ? "flowing" : ""} ${mainLink.direction === "reverse" ? "flow-up" : ""}"></div>
+          <div class="bypass-main-label">
+            ${isMainFlowing ? formatWatts(Math.abs(mainLink.watts), decimals, unit) : ""}
+          </div>
+          <div class="bypass-main-arrow ${arrowPos}">${arrowChar}</div>
+        </div>
+        ${bypassLinks.map(bl => {
+          const bypassNode = this._config!.nodes.find(n => n.id === bl.to)!;
+          const bypassWatts = this._getNodeWatts(bl.to);
+          const bypassSoc = this._getNodeSoc(bypassNode);
+          const connColor = linkColor(bl.direction);
+          const isFlowing = bl.direction !== "idle";
+          const connArrow = bl.direction === "reverse" ? "◀" : "▶";
+          return html`
+            <div class="bypass-connector"
+                 style=${styleMap({ "--bypass-link-color": connColor, "--anim-speed": `${animSpeed}ms` })}>
+              <div class="bypass-conn-line ${isFlowing ? "flowing" : ""}"></div>
+              <div class="bypass-conn-content">
+                <span class="bypass-conn-arrow">${connArrow}</span>
+                <span class="bypass-conn-label">
+                  ${isFlowing ? formatWatts(Math.abs(bl.watts), decimals, unit) : ""}
+                </span>
+              </div>
+            </div>
+            <div class="bypass-side">
+              ${this._renderNodeBox(bypassNode, bypassWatts, bypassSoc, decimals, unit, idleThreshold, true)}
+            </div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
+  private _renderInterstitialZone(
+    mainLink: ResolvedLink,
+    interstitialLinks: ResolvedLink[],
+    animSpeed: number,
+    decimals: number,
+    unit: "W" | "kW" | "auto",
+    idleThreshold: number
+  ) {
+    const mainColor = linkColor(mainLink.direction);
+    const isMainFlowing = mainLink.direction !== "idle";
+    const flowDir = mainLink.direction === "reverse" ? "top" : "bottom";
+    const mainArrow = mainLink.direction === "reverse" ? "▲" : "▼";
+    const arrowPos = mainLink.direction === "reverse" ? "tip-top" : "tip-bottom";
+
+    return html`
+      <div class="interstitial-zone">
+        <div class="interstitial-main"
+             style=${styleMap({ "--link-color": mainColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": flowDir })}>
+          <div class="interstitial-main-line ${isMainFlowing ? "flowing" : ""} ${mainLink.direction === "reverse" ? "flow-up" : ""}"></div>
+          <div class="interstitial-main-label">
+            ${isMainFlowing ? formatWatts(Math.abs(mainLink.watts), decimals, unit) : ""}
+          </div>
+          <div class="interstitial-main-arrow ${arrowPos}">${mainArrow}</div>
+        </div>
+        ${interstitialLinks.map(il => {
+          const iNode = this._config!.nodes.find(n => n.id === il.to)!;
+          const iWatts = this._getNodeWatts(il.to);
+          const iSoc = this._getNodeSoc(iNode);
+          const iColor = linkColor(il.direction);
+          const isFlowing = il.direction !== "idle";
+          const iFlowDir = il.direction === "reverse" ? "top" : "bottom";
+          const iArrow = il.direction === "reverse" ? "▲" : "▼";
+          return html`
+            <div class="interstitial-branch">
+              <div class="interstitial-branch-arrow"
+                   style=${styleMap({ "--link-color": iColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": iFlowDir })}>
+                <div class="interstitial-branch-line ${isFlowing ? "flowing" : ""} ${il.direction === "reverse" ? "flow-up" : ""}"></div>
+                <div class="interstitial-branch-label">
+                  ${isFlowing ? formatWatts(Math.abs(il.watts), decimals, unit) : ""}
+                </div>
+                <div class="interstitial-branch-arrowhead">${iArrow}</div>
+              </div>
+              <div class="interstitial-branch-node">
+                ${this._renderNodeBox(iNode, iWatts, iSoc, decimals, unit, idleThreshold, true)}
+              </div>
+              <div class="interstitial-branch-arrow"
+                   style=${styleMap({ "--link-color": iColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": iFlowDir })}>
+                <div class="interstitial-branch-line ${isFlowing ? "flowing" : ""} ${il.direction === "reverse" ? "flow-up" : ""}"></div>
+                <div class="interstitial-branch-arrowhead">${iArrow}</div>
+              </div>
+            </div>
+          `;
+        })}
       </div>
     `;
   }
@@ -337,8 +520,8 @@ export class FlowCascadeCard extends LitElement {
 
           return html`
             <div class="split-branch" style=${styleMap({ "--link-color": color, "--anim-speed": `${animSpeed}ms` })}>
-              <div class="split-branch-line ${isFlowing ? "flowing" : ""}"></div>
-              <div class="split-branch-arrow">▼</div>
+              <div class="split-branch-line ${isFlowing ? "flowing" : ""} ${rl.direction === "reverse" ? "flow-up" : ""}"></div>
+              <div class="split-branch-arrow">${rl.direction === "reverse" ? "▲" : "▼"}</div>
               <div class="split-branch-label">
                 ${targetIcon} ${isFlowing ? formatWatts(Math.abs(rl.watts), decimals, unit) : targetLabel}
               </div>
@@ -365,19 +548,28 @@ export class FlowCascadeCard extends LitElement {
     }
 
     // Classify links: horizontal (same row) vs vertical (different rows)
+    // Side links (target has layout_side) and bypass links (target has layout_bypass) are separated.
     const horizLinks = new Map<string, ResolvedLink>();
     const vertLinks: ResolvedLink[] = [];
+    const sideLinks: ResolvedLink[] = [];
+    const bypassLinks: ResolvedLink[] = [];
     for (const rl of resolvedLinks) {
       const fr = nodeRowIdx.get(rl.from) ?? -1;
       const tr = nodeRowIdx.get(rl.to) ?? -1;
-      if (fr >= 0 && fr === tr) {
+      if (nodeMap.get(rl.to)?.layout_interstitial) {
+        bypassLinks.push(rl); // reuse bypassLinks array — interstitial links render via _renderBypassZone replacement
+      } else if (nodeMap.get(rl.to)?.layout_bypass) {
+        bypassLinks.push(rl);
+      } else if (nodeMap.get(rl.to)?.layout_side) {
+        sideLinks.push(rl);
+      } else if (fr >= 0 && fr === tr) {
         horizLinks.set(rl.from, rl);
       } else {
         vertLinks.push(rl);
       }
     }
 
-    // Vertical links grouped by source row index
+    // Vertical links grouped by source row index (main links only)
     const vertByRow = new Map<number, ResolvedLink[]>();
     for (const rl of vertLinks) {
       const fr = nodeRowIdx.get(rl.from) ?? -1;
@@ -386,16 +578,37 @@ export class FlowCascadeCard extends LitElement {
       vertByRow.get(fr)!.push(rl);
     }
 
-    // Split detection from vertical links
+    // Main vertical links by source node
     const linksBySource = new Map<string, ResolvedLink[]>();
     for (const rl of vertLinks) {
       if (!linksBySource.has(rl.from)) linksBySource.set(rl.from, []);
       linksBySource.get(rl.from)!.push(rl);
     }
+
+    // Side links by source node
+    const sidesBySource = new Map<string, ResolvedLink[]>();
+    for (const rl of sideLinks) {
+      if (!sidesBySource.has(rl.from)) sidesBySource.set(rl.from, []);
+      sidesBySource.get(rl.from)!.push(rl);
+    }
+
+    // Bypass links by source node
+    const bypasesBySource = new Map<string, ResolvedLink[]>();
+    for (const rl of bypassLinks) {
+      if (!bypasesBySource.has(rl.from)) bypasesBySource.set(rl.from, []);
+      bypasesBySource.get(rl.from)!.push(rl);
+    }
+
+    // Fan-out: a single source with 2+ main links ALL targeting the same multi-node row.
     const splitTargets = new Set<string>();
     for (const [, rls] of linksBySource) {
       if (rls.length > 1) {
-        for (const rl of rls) splitTargets.add(rl.to);
+        const targetRowSet = new Set(rls.map(rl => nodeRowIdx.get(rl.to) ?? -1).filter(r => r >= 0));
+        const tRowIdx = [...targetRowSet][0];
+        const isFanOut = targetRowSet.size === 1 && (rows[tRowIdx]?.length ?? 0) > 1;
+        if (!isFanOut) {
+          for (const rl of rls) splitTargets.add(rl.to);
+        }
       }
     }
 
@@ -407,10 +620,20 @@ export class FlowCascadeCard extends LitElement {
             const outLinks = vertByRow.get(rowIdx) ?? [];
 
             if (rowNodes.length > 1) {
+              // Add spacer when all outgoing links target the same single node that has a side branch,
+              // so the arrows stay aligned over that node's main-col (not the side area).
+              let sideSpacerForInterRow = false;
+              if (outLinks.length > 0) {
+                const uniqueTargets = new Set(outLinks.map(rl => rl.to));
+                if (uniqueTargets.size === 1) {
+                  const targetId = [...uniqueTargets][0];
+                  sideSpacerForInterRow = (sidesBySource.get(targetId)?.length ?? 0) > 0;
+                }
+              }
               return html`
                 ${this._renderNodeRow(rowNodes, horizLinks, animation_speed, decimals, unit, idleThreshold)}
                 ${outLinks.length > 0
-                  ? this._renderInterRowZone(rowNodes, outLinks, animation_speed, decimals, unit)
+                  ? this._renderInterRowZone(rowNodes, outLinks, animation_speed, decimals, unit, sideSpacerForInterRow)
                   : nothing}
               `;
             }
@@ -419,19 +642,39 @@ export class FlowCascadeCard extends LitElement {
             const node = rowNodes[0];
             const watts = this._getNodeWatts(node.id);
             const soc = this._getNodeSoc(node);
+            const nodeSideLinks = sidesBySource.get(node.id) ?? [];
             const nodeOutLinks = linksBySource.get(node.id) ?? [];
-            const isSplit = nodeOutLinks.length > 1;
-            const singleLink = !isSplit && nodeOutLinks.length === 1 ? nodeOutLinks[0] : null;
+
+            // Fan-out: all main outgoing links target the same multi-node row
+            const outTargetRowSet = new Set(
+              nodeOutLinks.map(rl => nodeRowIdx.get(rl.to) ?? -1).filter(r => r >= 0)
+            );
+            const outTargetRowIdx = outTargetRowSet.size === 1 ? [...outTargetRowSet][0] : -1;
+            const isFanOut = nodeOutLinks.length > 1
+              && outTargetRowIdx > rowIdx
+              && (rows[outTargetRowIdx]?.length ?? 0) > 1;
+
+            const isSplit = nodeOutLinks.length > 1 && !isFanOut;
+            const singleLink = !isSplit && !isFanOut && nodeOutLinks.length === 1 ? nodeOutLinks[0] : null;
+            const hasSide = nodeSideLinks.length > 0;
+            const nodeBypassLinks = bypasesBySource.get(node.id) ?? [];
+            const hasBypass = nodeBypassLinks.length > 0;
 
             return html`
-              <div class="node">
-                ${this._renderNodeBox(node, watts, soc, decimals, unit, idleThreshold)}
-              </div>
-              ${isSplit
-                ? this._renderSplitLinks(nodeOutLinks, nodeMap, animation_speed, decimals, unit)
-                : singleLink && !splitTargets.has(node.id)
-                  ? this._renderSingleLink(singleLink, animation_speed, decimals, unit)
-                  : nothing}
+              ${hasSide
+                ? this._renderNodeWithSide(node, watts, soc, nodeSideLinks, decimals, unit, idleThreshold, animation_speed)
+                : html`<div class="node">${this._renderNodeBox(node, watts, soc, decimals, unit, idleThreshold)}</div>`}
+              ${isFanOut
+                ? this._renderFanOutZone(rows[outTargetRowIdx], nodeOutLinks, animation_speed, decimals, unit)
+                : isSplit
+                  ? this._renderSplitLinks(nodeOutLinks, nodeMap, animation_speed, decimals, unit)
+                  : singleLink && !splitTargets.has(node.id)
+                    ? hasBypass
+                      ? nodeBypassLinks.some(bl => nodeMap.get(bl.to)?.layout_interstitial)
+                        ? this._renderInterstitialZone(singleLink, nodeBypassLinks, animation_speed, decimals, unit, idleThreshold)
+                        : this._renderBypassZone(singleLink, nodeBypassLinks, animation_speed, decimals, unit, idleThreshold)
+                      : this._renderSingleLink(singleLink, animation_speed, decimals, unit)
+                    : nothing}
             `;
           })}
         </div>

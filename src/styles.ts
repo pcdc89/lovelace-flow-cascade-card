@@ -8,6 +8,8 @@ export const cardStyles = css`
     --fcc-bg: var(--card-background-color, #fff);
     --fcc-text: var(--primary-text-color, #212121);
     --fcc-arrow-gap: 40px;
+    --fcc-side-connector-w: 36px;
+    --fcc-side-col-w: 82px;
     display: block;
   }
 
@@ -194,6 +196,383 @@ export const cardStyles = css`
 
   .link-arrow.tip-bottom { bottom: 0; }
   .link-arrow.tip-top    { top: 0; }
+
+  /* ── NODE WITH SIDE BRANCH ── */
+  .node-with-side {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    max-width: 320px;
+    gap: 0;
+  }
+
+  .main-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .side-connector {
+    flex: 0 0 var(--fcc-side-connector-w);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 2px 0;
+  }
+
+  .side-conn-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 3px;
+    transform: translateY(-50%);
+    background: var(--link-color, var(--fcc-idle));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .side-conn-line::after {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 0;
+    width: 14px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.85) 50%, transparent);
+    animation: flow-horiz var(--anim-speed, 1.2s) linear infinite;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .side-conn-line.flowing::after { opacity: 1; }
+
+  .side-conn-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--fcc-bg);
+    padding: 0 2px;
+    gap: 1px;
+  }
+
+  .side-conn-arrow {
+    font-size: 0.8em;
+    color: var(--link-color, var(--fcc-idle));
+    line-height: 1;
+  }
+
+  .side-conn-label {
+    font-size: 0.62em;
+    font-weight: 600;
+    color: var(--link-color, var(--fcc-idle));
+    white-space: nowrap;
+    min-height: 0.8em;
+  }
+
+  .side-col {
+    flex: 0 0 var(--fcc-side-col-w);
+  }
+
+  /* ── INTER-ROW SIDE SPACER (aligns arrows with main-col when next row has a side node) ── */
+  .inter-row-side-spacer {
+    flex: 0 0 calc(var(--fcc-side-connector-w) + var(--fcc-side-col-w));
+  }
+
+  /* ── BYPASS ZONE (compact node in vertical link zone) ── */
+  .bypass-zone {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    margin: 2px 0;
+  }
+
+  .bypass-main {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+
+  .bypass-main-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    transform: translateX(-50%);
+    background: var(--link-color, var(--fcc-idle));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bypass-main-line::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 14px;
+    background: linear-gradient(
+      to var(--flow-dir, bottom),
+      transparent,
+      rgba(255, 255, 255, 0.85) 50%,
+      transparent
+    );
+    animation: flow-pulse var(--anim-speed, 1.2s) linear infinite;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .bypass-main-line.flowing::after { opacity: 1; }
+
+  .bypass-main-label {
+    position: absolute;
+    right: calc(50% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.72em;
+    font-weight: 600;
+    color: var(--link-color, var(--fcc-idle));
+    white-space: nowrap;
+    background: var(--fcc-bg);
+    padding: 1px 3px;
+    border-radius: 3px;
+  }
+
+  .bypass-main-arrow {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: 1em;
+    color: var(--link-color, var(--fcc-idle));
+    line-height: 1;
+  }
+
+  .bypass-connector {
+    flex: 0 0 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 2px 0;
+  }
+
+  .bypass-conn-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 3px;
+    transform: translateY(-50%);
+    background: var(--bypass-link-color, var(--fcc-idle));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bypass-conn-line::after {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 0;
+    width: 14px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.85) 50%, transparent);
+    animation: flow-horiz var(--anim-speed, 1.2s) linear infinite;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .bypass-conn-line.flowing::after { opacity: 1; }
+
+  .bypass-conn-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--fcc-bg);
+    padding: 0 2px;
+    gap: 1px;
+  }
+
+  .bypass-conn-arrow {
+    font-size: 1.1em;
+    color: var(--bypass-link-color, var(--fcc-idle));
+    line-height: 1;
+  }
+
+  .bypass-conn-label {
+    font-size: 0.80em;
+    font-weight: 700;
+    color: var(--bypass-link-color, var(--fcc-idle));
+    white-space: nowrap;
+    min-height: 0.9em;
+  }
+
+  .bypass-side {
+    flex: 0 0 96px;
+  }
+
+  /* ── INTERSTITIAL ZONE (half-width node between two vertical links) ── */
+  .interstitial-zone {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    margin: 2px 0;
+  }
+
+  .interstitial-main {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+
+  .interstitial-main-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    transform: translateX(-50%);
+    background: var(--link-color, var(--fcc-idle));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .interstitial-main-line::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 14px;
+    background: linear-gradient(
+      to var(--flow-dir, bottom),
+      transparent,
+      rgba(255, 255, 255, 0.85) 50%,
+      transparent
+    );
+    animation: flow-pulse var(--anim-speed, 1.2s) linear infinite;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .interstitial-main-line.flowing::after { opacity: 1; }
+
+  .interstitial-main-label {
+    position: absolute;
+    right: calc(50% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--link-color, var(--fcc-idle));
+    white-space: nowrap;
+    background: var(--fcc-bg);
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+
+  .interstitial-main-arrow {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1em;
+    color: var(--link-color, var(--fcc-idle));
+    line-height: 1;
+  }
+
+  .interstitial-main-arrow.tip-bottom { bottom: 0; }
+  .interstitial-main-arrow.tip-top    { top: 0; }
+
+  .interstitial-branch {
+    flex: 0 0 50%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .interstitial-branch-arrow {
+    height: var(--fcc-arrow-gap);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .interstitial-branch-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    transform: translateX(-50%);
+    background: var(--link-color, var(--fcc-idle));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .interstitial-branch-line::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 14px;
+    background: linear-gradient(
+      to var(--flow-dir, bottom),
+      transparent,
+      rgba(255, 255, 255, 0.85) 50%,
+      transparent
+    );
+    animation: flow-pulse var(--anim-speed, 1.2s) linear infinite;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .interstitial-branch-line.flowing::after { opacity: 1; }
+
+  .interstitial-branch-label {
+    position: absolute;
+    left: calc(50% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--link-color, var(--fcc-idle));
+    white-space: nowrap;
+    background: var(--fcc-bg);
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+
+  .interstitial-branch-arrowhead {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: 1em;
+    color: var(--link-color, var(--fcc-idle));
+    line-height: 1;
+  }
+
+  .interstitial-branch-node {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Compact node box for side nodes */
+  .node-box--compact {
+    padding: 8px 10px 6px;
+  }
+
+  .node-box--compact .node-icon { font-size: 1.4em; }
+  .node-box--compact .node-label { font-size: 0.72em; }
+  .node-box--compact .node-power { font-size: 1.0em; }
 
   /* ── NODE ROW (side-by-side nodes) ── */
   .node-row {
@@ -411,6 +790,15 @@ export const cardStyles = css`
 
   .split-branch-line.flowing::after {
     opacity: 1;
+  }
+
+  .link-line.flow-up::after,
+  .bypass-main-line.flow-up::after,
+  .interstitial-main-line.flow-up::after,
+  .interstitial-branch-line.flow-up::after,
+  .inter-row-line.flow-up::after,
+  .split-branch-line.flow-up::after {
+    animation-direction: reverse;
   }
 
   .split-branch-arrow {
