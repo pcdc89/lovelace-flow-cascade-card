@@ -471,29 +471,50 @@ export class FlowCascadeCard extends LitElement {
           const iWatts = this._getNodeWatts(il.to);
           const iSoc = this._getNodeSoc(iNode);
           const isFlowing = il.direction !== "idle";
-          // Branch adopts the main link's direction so that colour and animation
-          // match the actual power source (e.g. red/upward when grid imports).
-          const effectiveDir = isFlowing ? mainLink.direction : "idle";
+          const isSink = (iNode.type ?? "sink") === "sink";
+          // When the main link is idle but the branch flows, power comes from
+          // below (grid import) → treat as reverse so colour/arrow are correct.
+          const effectiveDir = isFlowing
+            ? (mainLink.direction === "forward" ? "forward" : "reverse")
+            : "idle";
           const iColor = linkColor(effectiveDir);
           const iFlowDir = effectiveDir === "reverse" ? "top" : "bottom";
           const iArrow = effectiveDir === "reverse" ? "▲" : "▼";
+          // Both arrows always visible. Only the entry arrow is colored; the other stays idle/gray.
+          // PV/forward: top arrow colored + label, bottom arrow idle.
+          // Grid/reverse: bottom arrow colored + label, top arrow idle.
+          const topActive   = effectiveDir !== "reverse";
+          const bottomActive = effectiveDir === "reverse";
+          const topColor    = topActive    ? iColor : linkColor("idle");
+          const botColor    = bottomActive ? iColor : linkColor("idle");
+          const topFlowing  = isFlowing && topActive;
+          const botFlowing  = isFlowing && bottomActive;
+          // For sinks the structural direction is fixed: top connector always flows ▼ (from above),
+          // bottom connector always flows ▲ (from below). Non-sinks follow effectiveDir like before.
+          const topArrowChar = isSink ? "▼" : iArrow;
+          const botArrowChar = isSink ? "▲" : iArrow;
+          const topFlowDir   = isSink ? "bottom" : iFlowDir;
+          const botFlowDir   = isSink ? "top"    : iFlowDir;
           return html`
             <div class="interstitial-branch">
               <div class="interstitial-branch-arrow"
-                   style=${styleMap({ "--link-color": iColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": iFlowDir })}>
-                <div class="interstitial-branch-line ${isFlowing ? "flowing" : ""} ${effectiveDir === "reverse" ? "flow-up" : ""}"></div>
+                   style=${styleMap({ "--link-color": topColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": topFlowDir })}>
+                <div class="interstitial-branch-line ${topFlowing ? "flowing" : ""}"></div>
                 <div class="interstitial-branch-label">
-                  ${isFlowing ? formatWatts(Math.abs(il.watts), decimals, unit) : ""}
+                  ${topFlowing ? formatWatts(Math.abs(il.watts), decimals, unit) : ""}
                 </div>
-                <div class="interstitial-branch-arrowhead">${iArrow}</div>
+                <div class="interstitial-branch-arrowhead">${topArrowChar}</div>
               </div>
               <div class="interstitial-branch-node">
                 ${this._renderNodeBox(iNode, iWatts, iSoc, decimals, unit, idleThreshold, true)}
               </div>
               <div class="interstitial-branch-arrow"
-                   style=${styleMap({ "--link-color": iColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": iFlowDir })}>
-                <div class="interstitial-branch-line ${isFlowing ? "flowing" : ""} ${effectiveDir === "reverse" ? "flow-up" : ""}"></div>
-                <div class="interstitial-branch-arrowhead">${iArrow}</div>
+                   style=${styleMap({ "--link-color": botColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": botFlowDir })}>
+                <div class="interstitial-branch-line ${botFlowing ? "flowing" : ""} ${isSink ? "flow-up" : effectiveDir === "reverse" ? "flow-up" : ""}"></div>
+                <div class="interstitial-branch-label">
+                  ${botFlowing ? formatWatts(Math.abs(il.watts), decimals, unit) : ""}
+                </div>
+                <div class="interstitial-branch-arrowhead bottom">${botArrowChar}</div>
               </div>
             </div>
           `;

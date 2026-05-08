@@ -560,6 +560,11 @@ export const cardStyles = css`
     line-height: 1;
   }
 
+  .interstitial-branch-arrowhead.bottom {
+    bottom: auto;
+    top: 0;
+  }
+
   .interstitial-branch-node {
     flex: 1;
     min-height: 0;

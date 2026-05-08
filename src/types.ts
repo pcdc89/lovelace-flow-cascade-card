@@ -13,6 +13,10 @@ export interface NodeConfig {
   invert_color?: boolean;
   /** Place nodes with same layout_row side-by-side; links within the same row render horizontally */
   layout_row?: number;
+  /** Render this node as a compact half-width box in the link-zone above it (bypass on the left, node on the right) */
+  layout_bypass?: boolean;
+  /** Render this node at half-width on the right, vertically between its source and the next main node */
+  layout_interstitial?: boolean;
 }
 
 export interface LinkConfig {
