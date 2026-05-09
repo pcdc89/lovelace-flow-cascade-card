@@ -120,6 +120,14 @@ export const cardStyles = css`
     margin-top: 4px;
   }
 
+  .soc-min-label {
+    font-size: 0.75em;
+    font-weight: 700;
+    color: #ff9800;
+    margin-top: 2px;
+    letter-spacing: 0.03em;
+  }
+
   /* ── SINGLE LINK ── */
   .link {
     display: flex;

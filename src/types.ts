@@ -6,6 +6,8 @@ export interface NodeConfig {
   energy_entity?: string;
   /** For battery: entity with state 0-100 */
   soc_entity?: string;
+  /** SOC threshold (%) below which a "Min. erreicht" label is shown */
+  soc_min?: number;
   color?: string;
   /** "source" | "sink" | "bidirectional" */
   type?: "source" | "sink" | "bidirectional";

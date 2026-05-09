@@ -379,6 +379,14 @@ const cardStyles = i$5 `
     margin-top: 4px;
   }
 
+  .soc-min-label {
+    font-size: 0.75em;
+    font-weight: 700;
+    color: #ff9800;
+    margin-top: 2px;
+    letter-spacing: 0.03em;
+  }
+
   /* ── SINGLE LINK ── */
   .link {
     display: flex;
@@ -1259,11 +1267,14 @@ let FlowCascadeCard = class FlowCascadeCard extends i$2 {
           <div class="node-power ${watts === null ? "unavailable" : ""}">
             ${watts === null ? "–" : formatWatts(watts, decimals, unit)}
           </div>
-          ${soc !== null ? b `
+          ${node.soc_entity ? b `
             <div class="soc-bar-wrap">
-              <div class="soc-bar" style=${o({ width: `${soc}%` })}></div>
+              <div class="soc-bar" style=${o({ width: `${soc ?? 0}%` })}></div>
             </div>
-            <div class="soc-label">${soc.toFixed(0)} %</div>
+            <div class="soc-label">${soc !== null ? soc.toFixed(0) + " %" : "– %"}</div>
+            ${soc !== null && node.soc_min !== undefined && soc <= node.soc_min ? b `
+              <div class="soc-min-label">Min. erreicht</div>
+            ` : A}
           ` : A}
         </div>
       </div>

@@ -200,11 +200,14 @@ export class FlowCascadeCard extends LitElement {
           <div class="node-power ${watts === null ? "unavailable" : ""}">
             ${watts === null ? "–" : formatWatts(watts, decimals, unit)}
           </div>
-          ${soc !== null ? html`
+          ${node.soc_entity ? html`
             <div class="soc-bar-wrap">
-              <div class="soc-bar" style=${styleMap({ width: `${soc}%` })}></div>
+              <div class="soc-bar" style=${styleMap({ width: `${soc ?? 0}%` })}></div>
             </div>
-            <div class="soc-label">${soc.toFixed(0)} %</div>
+            <div class="soc-label">${soc !== null ? soc.toFixed(0) + " %" : "– %"}</div>
+            ${soc !== null && node.soc_min !== undefined && soc <= node.soc_min ? html`
+              <div class="soc-min-label">Min. erreicht</div>
+            ` : nothing}
           ` : nothing}
         </div>
       </div>
