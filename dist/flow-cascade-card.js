@@ -1461,13 +1461,17 @@ let FlowCascadeCard = class FlowCascadeCard extends i$2 {
         const flowDir = mainLink.direction === "reverse" ? "top" : "bottom";
         const mainArrow = mainLink.direction === "reverse" ? "▲" : "▼";
         const arrowPos = mainLink.direction === "reverse" ? "tip-top" : "tip-bottom";
+        const interstitialWattsSum = interstitialLinks
+            .filter(il => il.direction !== "idle")
+            .reduce((sum, il) => sum + Math.abs(il.watts), 0);
+        const mainDisplayWatts = Math.max(0, Math.abs(mainLink.watts) - interstitialWattsSum);
         return b `
       <div class="interstitial-zone">
         <div class="interstitial-main"
              style=${o({ "--link-color": mainColor, "--anim-speed": `${animSpeed}ms`, "--flow-dir": flowDir })}>
           <div class="interstitial-main-line ${isMainFlowing ? "flowing" : ""} ${mainLink.direction === "reverse" ? "flow-up" : ""}"></div>
           <div class="interstitial-main-label">
-            ${isMainFlowing ? formatWatts(Math.abs(mainLink.watts), decimals, unit) : ""}
+            ${isMainFlowing && mainDisplayWatts > idleThreshold ? formatWatts(mainDisplayWatts, decimals, unit) : ""}
           </div>
           <div class="interstitial-main-arrow ${arrowPos}">${mainArrow}</div>
         </div>
